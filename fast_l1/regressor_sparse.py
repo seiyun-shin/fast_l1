@@ -35,23 +35,6 @@ def construct_design_matrix(m, n, sparsity):
     A = np.sqrt(sparsity / n) * S
     return A
 
-# Modify training to use compressed sensing design matrix
-def train_saga(weight, bias, loader, val_loader, *, lr, start_lams, sparsity, **kwargs):
-    n_features = weight.shape[0]
-    n_examples = loader.dataset.size
-    A = construct_design_matrix(n_examples, n_features, sparsity)
-
-    for epoch in range(10):  # Adjust epochs as needed
-        print(f"Epoch {epoch}: Training with compressed sensing matrix...")
-        for X, y in tqdm(loader):
-            # Use the compressed sensing matrix in your optimization
-            X = ch.mm(A, X.T).T  # Transform X using A
-            y_pred = X @ weight + bias
-            loss = ch.nn.functional.mse_loss(y_pred, y)
-            loss.backward()
-            weight.data -= lr * weight.grad
-            weight.grad.zero_()
-
 def fast_threshold(data, lamb):
     kernel(data, lamb, data)
 
@@ -183,6 +166,11 @@ def train_saga(weight, bias, loader, val_loader, *,
     X, y, _ = next(iter(loader))
     batch_size, num_inputs, num_outputs = y.shape[0], X.shape[1], y.shape[1]
 
+    """
+    Train the model using a compressed sensing-based design matrix.
+    """
+    A = construct_design_matrix(n_ex, weight.shape[0], sparsity)
+
     logger = None
     if logdir is not None:
         logger = Logger(logdir, fields={
@@ -258,6 +246,7 @@ def train_saga(weight, bias, loader, val_loader, *,
                                            non_blocking=True)
 
                 X.copy_(bool_X)
+                X = ch.mm(A, X.T).T
                 normalize(X, mm_mu, mm_sig, X)
 
                 # Compute residuals
