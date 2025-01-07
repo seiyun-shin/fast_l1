@@ -245,9 +245,12 @@ def train_saga(weight, bias, loader, val_loader, *,
                 a_prev[:, :num_keep].copy_(a_table[idx.cpu(), :num_keep],
                                            non_blocking=True)
 
+                # Normalize data
                 X.copy_(bool_X)
-                X = ch.mm(A, X.T).T
                 normalize(X, mm_mu, mm_sig, X)
+
+                # Apply compressed sensing matrix A
+                X = ch.mm(A, X.T).T
 
                 # Compute residuals
                 y_buf[:, :num_keep] = y[:, index_mapping[:num_keep]]
